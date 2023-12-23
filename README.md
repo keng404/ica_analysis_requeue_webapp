@@ -9,7 +9,7 @@ See [here](https://keneng87.pyscriptapps.com/ica-analysis-requeue/latest/) to in
 
 ### todos
 
-- [] create loading pages for each button press
-- [] add more explanations of CLI/API arguments
-- [] add ability to reupload file for requeue
-- [] is it possible to embed ICA CLI into app?
+- [ ] create loading pages for each button press
+- [ ] add more explanations of CLI/API arguments
+- [ ] add ability to reupload file for requeue
+- [ ] is it possible to embed ICA CLI into app?
