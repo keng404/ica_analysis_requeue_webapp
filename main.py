@@ -15,15 +15,19 @@ from tempfile import NamedTemporaryFile
 import webbrowser
 ###############
 step1_message = "STEP1: Login using your ICA credentials"
-pydom["div#step1-message"].html = step1_message
+pydom["h1#step1-message"].html = step1_message
 step2_message = "STEP2: Identify ICA project to get ICA project id. Use search bar,enter a project name, and click on the 'Select Project' button"
-pydom["div#step2-message"].html = step2_message
+pydom["h1#step2-message"].html = step2_message
 step3_message = "STEP3: Identify analysis to get ICA analysis id. Use search bar,enter an analysis name, and click on the 'Select Analysis' button"
-pydom["div#step3-message"].html = step3_message
+pydom["h1#step3-message"].html = step3_message
 
 step4_message = "STEP4: Generate requeue template CLI or API"
-pydom["div#step4-message"].html = step4_message
+pydom["h1#step4-message"].html = step4_message
 #######################
+pydom["div#step2-selection-form"].style["display"] = "none"
+pydom["div#step3-selection-form"].style["display"] = "none"
+pydom["div#step4-selection-form"].style["display"] = "none"
+pydom["div#requeue-template-download"].style["display"] = "none"
 ################
 ICA_BASE_URL = 'https://ica.illumina.com/ica'
 import base64
@@ -85,7 +89,7 @@ async def list_projects(jwt_token,max_retries=20):
     projects_metadata = []
     full_url = api_base_url + endpoint  ############ create header
     headers = dict()
-    headers['Accept'] = 'application/vnd.illumina.v3+json'
+    headers['accept'] = 'application/vnd.illumina.v3+json'
     headers['Content-Type'] = 'application/vnd.illumina.v3+json'
     headers['Authorization'] =  'Bearer ' + jwt_token
     try:
@@ -118,7 +122,7 @@ async def get_project_id(jwt_token, project_name):
     endpoint = f"/api/projects?search={project_name}&includeHiddenProjects=true&pageOffset={pageOffset}&pageSize={pageSize}"
     full_url = api_base_url + endpoint  ############ create header
     headers = dict()
-    headers['Accept'] = 'application/vnd.illumina.v3+json'
+    headers['accept'] = 'application/vnd.illumina.v3+json'
     headers['Content-Type'] = 'application/vnd.illumina.v3+json'
     headers['Authorization'] =  'Bearer ' + jwt_token
     try:
@@ -152,9 +156,11 @@ async def list_project_analyses(jwt_token,project_id,max_retries=20):
     analyses_metadata = []
     full_url = api_base_url + endpoint  ############ create header
     headers = dict()
-    headers['Accept'] = 'application/vnd.illumina.v3+json'
+    headers['accept'] = 'application/vnd.illumina.v3+json'
     headers['Content-Type'] = 'application/vnd.illumina.v3+json'
     headers['Authorization'] =  'Bearer ' + jwt_token
+    analysis_metadata['metadata_by_analysis_id'] = dict()
+    analysis_metadata['metadata_by_analysis_name'] = dict()
     try:
         projectAnalysisPagedList = None
         response_code = 404
@@ -173,7 +179,11 @@ async def list_project_analyses(jwt_token,project_id,max_retries=20):
                 projectAnalysisPagedList = await pyfetch(full_url,method = 'GET',headers=headers)
                 projectAnalysisPagedList_response = await projectAnalysisPagedList.json()
                 my_count = 0
-                for analysis in projectAnalysisPagedList_response['items']:                       
+                for analysis in projectAnalysisPagedList_response['items']:   
+                    ### add lookup dict objects for faster querying later .... 
+                    analysis_metadata['metadata_by_analysis_id'][analysis['id']]  = analysis  
+                    analysis_metadata['metadata_by_analysis_name'][analysis['userReference']]  = analysis   
+                    ### store list of analyses metadata
                     analyses_metadata.append(analysis)
                 page_number += 1
                 number_of_rows_to_skip = page_number * pageSize
@@ -235,7 +245,7 @@ async def get_pipeline_id(pipeline_code, jwt_token,project_name,project_id=None)
     endpoint = f"/api/projects/{project_id}/pipelines?pageOffset={pageOffset}&pageSize={pageSize}"
     full_url = api_base_url + endpoint	############ create header
     headers = dict()
-    headers['Accept'] = 'application/vnd.illumina.v3+json'
+    headers['accept'] = 'application/vnd.illumina.v3+json'
     headers['Content-Type'] = 'application/vnd.illumina.v3+json'
     headers['Authorization'] =  'Bearer ' + jwt_token
     try:
@@ -275,7 +285,7 @@ async def get_analysis_storage_id(jwt_token, storage_label=""):
     endpoint = f"/api/analysisStorages"
     full_url = api_base_url + endpoint	############ create header
     headers = dict()
-    headers['Accept'] = 'application/vnd.illumina.v3+json'
+    headers['accept'] = 'application/vnd.illumina.v3+json'
     headers['Content-Type'] = 'application/vnd.illumina.v3+json'
     headers['Authorization'] =  'Bearer ' + jwt_token
     try:
@@ -296,7 +306,7 @@ async def get_analysis_storage_id(jwt_token, storage_label=""):
 
 
 #### Conversion functions
-def convert_data_inputs(data_inputs):
+async def convert_data_inputs(data_inputs):
     converted_data_inputs = []
     for idx,item in enumerate(data_inputs):
         converted_data_input = {}
@@ -312,7 +322,7 @@ async def get_activation_code(jwt_token,project_id,pipeline_id,data_inputs,input
     #print(full_url)
     ############ create header
     headers = dict()
-    headers['Accept'] = 'application/vnd.illumina.v3+json'
+    headers['accept'] = 'application/vnd.illumina.v3+json'
     headers['Content-Type'] = 'application/vnd.illumina.v3+json'
     headers['Authorization'] =  'Bearer ' + jwt_token
     ######## create body
@@ -321,12 +331,16 @@ async def get_activation_code(jwt_token,project_id,pipeline_id,data_inputs,input
     collected_parameters["projectId"] = project_id
     collected_parameters["analysisInput"] = {}
     collected_parameters["analysisInput"]["objectType"] = "STRUCTURED"
-    collected_parameters["analysisInput"]["inputs"] = convert_data_inputs(data_inputs)
+    collected_parameters["analysisInput"]["inputs"] = await convert_data_inputs(data_inputs)
     collected_parameters["analysisInput"]["parameters"] = input_parameters
     collected_parameters["analysisInput"]["referenceDataParameters"] = []
-    response = await pyfetch(full_url, method = 'POST', headers = headers, data = json.dumps(collected_parameters))
+    #display(full_url)
+    #display(collected_parameters)
+    response = await pyfetch(full_url, method = 'POST', headers = headers, body = json.dumps(collected_parameters))
+    #response = await pyfetch(full_url, method = 'POST', headers = headers, data = json.dumps(collected_parameters))
     #pprint(response.json())
     entitlement_details = await response.json()
+    #display(entitlement_details)
     return entitlement_details['id']
 ###############################################
 async def curlify(method="GET",endpoint="FOOBAR",header={},body={}):
@@ -337,7 +351,7 @@ async def curlify(method="GET",endpoint="FOOBAR",header={},body={}):
         curlified_command_components.append(f"-H '{key}:" + f" {header[key]}' \\")
     if len(body) > 0:
         rest_of_command = json.dumps(body, indent = 4)
-        curlified_command_components.append(f"-d {rest_of_command}")
+        curlified_command_components.append(f"-d '{rest_of_command}'")
     curlified_command = "\n".join(curlified_command_components)
     print(f"{curlified_command}")
     return curlified_command
@@ -352,7 +366,7 @@ async def launch_pipeline_analysis_cwl(jwt_token,project_id,pipeline_id,data_inp
     #print(full_url)
     ############ create header
     headers = dict()
-    headers['Accept'] = 'application/vnd.illumina.v3+json'
+    headers['accept'] = 'application/vnd.illumina.v3+json'
     headers['Content-Type'] = 'application/vnd.illumina.v3+json'
     headers['Authorization'] =  'Bearer ' + jwt_token
     ######## create body
@@ -368,7 +382,7 @@ async def launch_pipeline_analysis_cwl(jwt_token,project_id,pipeline_id,data_inp
     collected_parameters["projectId"] = project_id
     collected_parameters["analysisInput"] = {}
     collected_parameters["analysisInput"]["objectType"] = "STRUCTURED"
-    collected_parameters["analysisInput"]["inputs"] = convert_data_inputs(data_inputs)
+    collected_parameters["analysisInput"]["inputs"] = await convert_data_inputs(data_inputs)
     collected_parameters["analysisInput"]["parameters"] = input_parameters
     collected_parameters["analysisInput"]["referenceDataParameters"] = []
     # Writing to job template to f"{user_pipeline_reference}.job_template.json"
@@ -384,7 +398,7 @@ async def launch_pipeline_analysis_cwl(jwt_token,project_id,pipeline_id,data_inp
         return(f"{user_pipeline_reference_alias}.api_job_template.txt")
     else:
         ##########################################
-        response = pyfetch(full_url, method = 'POST', headers = headers, data = json.dumps(collected_parameters))
+        response = await pyfetch(full_url, method = 'POST', headers = headers, data = json.dumps(collected_parameters))
         launch_details = await response.json()
         pprint(launch_details, indent=4)
         return launch_details
@@ -545,7 +559,7 @@ analysis_metadata = dict()
 ##########################################
 #### STEP 1 in HTML
 async def load_login_info(event):
-    display("STEP1: Authorizing login credentials")
+    display("STEP1: Authorizing login credentials",target="step1-output",append="False")
     USERNAME = document.getElementById('txt-uname').value
     #display('MY_USERNAME: ' + USERNAME)
     PASSWORD = document.getElementById('txt-pwd').value
@@ -572,16 +586,20 @@ async def load_login_info(event):
         project_table = await list_projects(jwt_token)
         df = pd.DataFrame(project_table, columns = ['ICA Project Name', 'ICA Project ID']) 
         pydom["div#project-output"].style["display"] = "block"
+
+        ### show field and submit button for STEP2:
+        pydom["div#step2-selection-form"].style["display"] = "block"
+
         #pydom["div#roject-output-inner"].innerHTML = df_window(df)
         #document.getElementById('project-output-inner').innerHTML = df.to_html()
         document.getElementById('project-output-inner').innerHTML = df_html(df)
         #display(df.to_html(), target="project-output-inner", append="False")
         #display(df_window(df), target="project-output-inner", append="False")
-    return display("You are logged in",target="step1-output",append="False")
+    return display("You are logged in",target="step1-output",append="True")
 #######
 #### STEP 2 in HTML
 async def load_project_selection_info(event):
-    display("STEP2 starting",target ="step2-selection",append="True")
+    display("STEP2 starting",target ="step2-selection",append="False")
     # Create a Python proxy for the callback function
     PROJECT_NAME =  document.getElementById("txt-project-name").value 
     pydom["div#step2-selection"].html = PROJECT_NAME
@@ -606,23 +624,42 @@ async def load_project_selection_info(event):
     pydom["div#analyses-output"].style["display"] = "block"
     #display(df, target="project-output-inner", append="False")
     document.getElementById('analyses-output-inner').innerHTML = df_html(df)
+
+    ### show field and submit button for STEP3:
+    pydom["div#step3-selection-form"].style["display"] = "block"
+
     return display("STEP2 complete",target ="step2-selection",append="True")
 ##################    
 #### STEP 3 in HTML
 async def load_analysis_selection_info(event):
-    display("STEP3 starting",target ="step3-selection",append="True")
+    display("STEP3 starting",target ="step3-selection",append="False")
     ANALYSIS_NAME = document.getElementById("txt-analysis-name").value 
     analysis_metadata['analysis_name'] = ANALYSIS_NAME
     pydom["div#step3-selection"].html = ANALYSIS_NAME
     display(f'Selected analysis name is: {ANALYSIS_NAME}',target ="step3-selection",append="True")
     try:
-        ANALYSIS_ID = await get_project_analysis_id(authorization_metadata['jwt_token'],analysis_metadata['project_id'],analysis_metadata['analysis_name'])
-        display(f'analysis id is : {ANALYSIS_ID}',target ="step3-selection",append="True")
-        analysis_metadata['analysis_id'] = ANALYSIS_ID
+        if ANALYSIS_NAME in analysis_metadata['metadata_by_analysis_id'].keys():
+            analysis_metadata['analysis_id'] = ANALYSIS_NAME
+            pydom["div#step4-selection-form"].style["display"] = "block"
+        elif ANALYSIS_NAME in analysis_metadata['metadata_by_analysis_name'].keys():
+            #ANALYSIS_ID = await get_project_analysis_id(authorization_metadata['jwt_token'],analysis_metadata['project_id'],analysis_metadata['analysis_name'])
+            ANALYSIS_ID_LOOKUP = analysis_metadata['metadata_by_analysis_name'][ANALYSIS_NAME]
+            ANALYSIS_ID = ANALYSIS_ID_LOOKUP['id']
+            display(f'analysis id is : {ANALYSIS_ID}',target ="step3-selection",append="True")
+            analysis_metadata['analysis_id'] = ANALYSIS_ID
+            pydom["div#step4-selection-form"].style["display"] = "block"
+        else:
+            console.error('Please retry entering an analysis name')
+            alert('Please retry entering an analysis name.')
+            raise ValueError(f"Could not get analysis id for analysis: {ANALYSIS_NAME}\nPlease double-check analysis name exists.") 
     except:
-        console.error('Please retry entering an analysis name')
-        alert('Please retry entering an analysis name.')
-        raise ValueError(f"Could not get analysis id for analysis: {ANALYSIS_NAME}\nPlease double-check analysis name exists.") 
+        if ANALYSIS_NAME in analysis_metadata['metadata_by_analysis_id'].keys():
+            analysis_metadata['analysis_id'] = ANALYSIS_NAME
+            pydom["div#step4-selection-form"].style["display"] = "block"
+        else:
+            console.error('Please retry entering an analysis name')
+            alert('Please retry entering an analysis name.')
+            raise ValueError(f"Could not get analysis id for analysis: {ANALYSIS_NAME}\nPlease double-check analysis name exists.") 
     return display("STEP3 complete",target ="step3-selection",append="True")
 #####################
 # create download button and serve templates as text files
@@ -644,22 +681,29 @@ def create_download_button(file_of_interest=None):
     
         file = File.new([js_array], file_of_interest, {type: "text/plain"})
         url = URL.createObjectURL(file)
-        downloadDoc = document.createElement('a')
-        
-        downloadDoc.href = window.URL.createObjectURL(file)
-        
-        downloadButton = document.createElement('button')
-        downloadButton.innerHTML = "Download Requeue Template"
+        # hide download button if it exists
+        #if document.getElementById("requeue-template-download") is not None:
+        pydom["div#requeue-template-download"].style["display"] = "none"
 
-        downloadDoc.appendChild(downloadButton)
+        #downloadDoc = document.createElement('a')
+        downloadDoc = document.getElementById('requeue-template-download-child')
+        downloadDoc.href = window.URL.createObjectURL(file)
+
+        ############## hard-coded in html to avoid creating mutliple buttons
+        #downloadButton = document.createElement('button')
+        #downloadButton.innerHTML = "Download Requeue Template"
+        #downloadDoc.appendChild(downloadButton)
+        ##############
+        
         document.getElementById("requeue-template-download").appendChild(downloadDoc)
         downloadDoc.setAttribute("download", file_of_interest)
+        pydom["div#requeue-template-download"].style["display"] = "block"
     else:
         print("Nothing to do")
     return 0 
 #### STEP 4 in HTML
 async def generate_requeue_template(event):
-    display("STEP4 starting",target="requeue-template-logging",append="True")
+    display("STEP4 starting",target="requeue-template-logging",append="False")
     TEMPLATE_TYPE = document.getElementById("txt-template-type").value 
     if TEMPLATE_TYPE.lower() == "cli":
         display('Collecting info to generate CLI template',target="requeue-template-logging",append="True")
@@ -671,7 +715,8 @@ async def generate_requeue_template(event):
         raise ValueError(f"Please retry entering a requeue template type [API or CLI]. You entered the following as a requeue template type [ {TEMPLATE_TYPE} ]") 
    ###########################
     display('Grabbing more info about the previously run analysis',target="requeue-template-logging",append="True")
-    analyses_list = await list_project_analyses(authorization_metadata['jwt_token'],analysis_metadata['project_id'])
+    analyses_list =[ analysis_metadata['metadata_by_analysis_id'][analysis_metadata['analysis_id']] ]
+    #analyses_list = await list_project_analyses(authorization_metadata['jwt_token'],analysis_metadata['project_id'])
     for aidx,project_analysis in enumerate(analyses_list):
         if project_analysis['userReference'] == analysis_metadata['analysis_name']:
             analysis_id = project_analysis['id']
@@ -695,9 +740,9 @@ async def generate_requeue_template(event):
     pipeline_run_name = analysis_metadata['analysis_name'] + "_requeue_" + timestampStr 
     #print(f"Setting up pipeline analysis for {pipeline_run_name}")
     my_params = job_templates['parameter_settings']
-    #print(my_params)
+    #display(my_params)
     my_data_inputs = job_templates['input_data']
-    #print(my_data_inputs)
+    #display(my_data_inputs)
     pipeline_id = await get_pipeline_id(pipeline_name, authorization_metadata['jwt_token'],analysis_metadata['project_name'],project_id = analysis_metadata['project_id'])
     my_tags = [pipeline_run_name]
     my_storage_analysis_id = await get_analysis_storage_id(authorization_metadata['jwt_token'], storage_size)
@@ -717,12 +762,11 @@ async def generate_requeue_template(event):
     elif TEMPLATE_TYPE.lower() == "api":
         display('Generating API template',target="requeue-template-logging",append="True")
         test_launch = await launch_pipeline_analysis_cwl(authorization_metadata['jwt_token'], analysis_metadata['project_id'], pipeline_id, my_data_inputs, my_params,my_tags, my_storage_analysis_id, pipeline_run_name,workflow_language,make_template = True)
-        display(test_launch)
         #create_download_button(test_launch)
         pydom["script#my_template"].style["display"] = "block"
         document.getElementById('my_template').innerHTML = test_launch
         create_download_button(file_of_interest=test_launch)
-        
+        display(f"Download button will download file locally, named: {test_launch}",target="requeue-template-logging",append="True")
         #create_download_button(test_launch)
         #display(test_launch,target="my_template",append="False")
     else:

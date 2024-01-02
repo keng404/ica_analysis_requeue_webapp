@@ -45,9 +45,14 @@
         </nav>
 
         <!--login form -->
-        <div id="disclaimer-message">This unofficial app is for ICA users to generate API/CLI templates based on previously run analyses. </div>
-        <div id="step1-message"></div>
-
+        <div id="disclaimer-message">This unofficial app is for ICA users to generate API/CLI templates based on previously run analyses. 
+            <br> 
+            <p>
+                This is for educational purposes only and is not intended to be apart of the ICA product
+            </p>
+        </div>
+        <section id="section1">
+        <h1 id="step1-message"></h1>
         <div id="login-form" class="container">
             <label for="username"><b>Username</b></label>
             <input type="text" id="txt-uname" placeholder="None" name="username" required>
@@ -67,12 +72,14 @@
             Login
             </button>
         </div>
-
         <div id="step1-output"></div>
-        
+        <hr>
+        </section>
+
+        <section id="section2">
         <!--  Dynamic rendering of a table of ICA project names and Ids -->
-        <div id="step2-message"></div>
-        
+        <h1 id="step2-message"></h1>
+        <h2>A project table will be rendered below after querying ICA</h2>
         <div id="project-output" hidden>
             <h3>Search for a project</h3>
             <input type="text" id="my-project-query" onkeyup="filterProjectTable()" placeholder="Search for project names..">
@@ -123,9 +130,15 @@
             }
             </script>
       </script>
+        <hr>
+        </section>
 
-        <div id="step3-message"></div>
-        
+        <section id="section3">
+        <h1 id="step3-message"></h1>
+        <h2>An analyses table will be rendered below after querying ICA
+            <br>
+            You may need to wait a minute for the table to render
+        </h2>
         <div id="analyses-output" hidden>
             <h3>Search for an analysis</h3>
             <input type="text" id="my-analysis-query" onkeyup="filterAnalysesTable()" placeholder="Search for analyses names..">
@@ -174,8 +187,11 @@
             }
             </script>
       </script>
+        <hr>
+        </section>
 
-      <div id="step4-message"></div>
+    <section id="section4">
+      <h1 id="step4-message"></h1>
       <div id="step4-selection-form"  class="container">
         <label for="template_type"><b>Generate Template Type</b></label>
         <input type="text" id="txt-template-type" placeholder="CLI or API" name="template_type" required>
@@ -199,15 +215,17 @@
         <script type="py" terminal id=my_template></script>
     </div>
 
-    <div id="requeue-template-download"></div>    
+    <div id="requeue-template-download">
+        <a id="requeue-template-download-child">
+            <button>Download Requeue Template</button>
+        </a>
+    </div> 
+    <hr>
+    </section>
+
+        
       <!-- HTML reference and call to your main python script--> 
         <section class="pyscript">
-            <div class="font-mono">
-                status: <label id="output1"></label>
-            </div>
-            <div id="output2" class="font-mono"></div>
-            <div id="output3" class="font-mono"></div>
-
             <script type="py" src="./main.py" config="./pyscript.toml" async></script>
         </section>
     </body>
