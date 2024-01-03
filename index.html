@@ -14,7 +14,7 @@
         <!-- This script tag bootstraps PyScript -->
         <script type="module" src="https://pyscript.net/releases/2023.11.2/core.js"></script>
         <py-config>
-            packages = ["matplotlib", "pandas"]
+            packages = ["matplotlib", "pandas","jinja2"]
         </py-config>
         <!-- for splashscreen -->
         <style>
@@ -26,7 +26,7 @@
             loading.showModal();
         </script>
         
-        <title>Simple Clock Demo</title>
+        <title>ICA Analysis CLI/API template maker</title>
         <link rel="icon" type="image/png" href="./assets/favicon.png" />
     </head>
 
@@ -56,13 +56,14 @@
         <div id="login-form" class="container">
             <label for="username"><b>Username</b></label>
             <input type="text" id="txt-uname" placeholder="None" name="username" required>
-        
+            <br>
             <label for="password"><b>Password</b></label>
             <input type="password"  id="txt-pwd" placeholder="None" name="password" required>
-            
-            <label for="tenant"><b>Domain Name (suffix before *.login.illumina.com). Fill this out if your username exists on multiple ICA domains</b></label>
+            <br>
+            <label for="tenant"><b>Domain Name (suffix before *.login.illumina.com). <br> Fill this out if your username exists on multiple ICA domains</b></label>
+            <br>
             <input type="text" id="txt-domain-name" placeholder="None" name="domain_name" >
-            
+            <br>
             <button 
             type="submit"
             id="login-load"
@@ -210,8 +211,8 @@
     <div id="requeue-template"></div>
     <div id="requeue-template-logging"></div>
         
-    <div id="requeue-template-container"  class="container">
-        <label for="requeue_template"><b>Your Requeue Template</b></label>
+    <div id="requeue-template-container"  class="container" hidden>
+        <label for="requeue_template"><b>Your Requeue Template logging (debug)</b></label>
         <script type="py" terminal id=my_template></script>
     </div>
 
