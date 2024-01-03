@@ -16,9 +16,9 @@ import webbrowser
 ###############
 step1_message = "STEP1: Login using your ICA credentials"
 pydom["h1#step1-message"].html = step1_message
-step2_message = "STEP2: Identify ICA project to get ICA project id. Use search bar,enter a project name, and click on the 'Select Project' button"
+step2_message = "STEP2: Identify ICA project to get ICA project id. <br> Use search bar to query table <br> once project is found, below the table enter a project name and click on the 'Select Project' button"
 pydom["h1#step2-message"].html = step2_message
-step3_message = "STEP3: Identify analysis to get ICA analysis id. Use search bar,enter an analysis name, and click on the 'Select Analysis' button"
+step3_message = "STEP3: Identify analysis to get ICA analysis id. <br> Use search bar to query table <br> once project is found, below the table enter an analysis name, and click on the 'Select Analysis' button"
 pydom["h1#step3-message"].html = step3_message
 
 step4_message = "STEP4: Generate requeue template CLI or API"
@@ -459,8 +459,7 @@ def get_pipeline_request_template(jwt_token, project_id, pipeline_name, data_inp
     #print(f"Writing your cli job template out to {pipeline_run_name_alias}.cli_job_template.txt for future use.\n")
     with open(f"{pipeline_run_name_alias}.cli_job_template.txt", "w") as outfile:
         outfile.write(f"{cli_template}")
-    print("Also printing out the CLI template to screen\n")
-    print(f"{cli_template}")
+    #print("Also printing out the CLI template to screen\n")
     return  f"{pipeline_run_name_alias}.cli_job_template.txt"
 ###################################################
 
@@ -756,6 +755,7 @@ async def generate_requeue_template(event):
         pydom["script#my_template"].style["display"] = "block"
         document.getElementById('my_template').innerHTML = cli_template
         create_download_button(file_of_interest=cli_template)
+        display(f"Download button will download file locally, named: {cli_template}",target="requeue-template-logging",append="True")
 
         #create_download_button(cli_template)
         #display(cli_template,target="my_template",append="False")
