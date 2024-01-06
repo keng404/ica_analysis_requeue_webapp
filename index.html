@@ -13,6 +13,11 @@
 
         <!-- This script tag bootstraps PyScript -->
         <script type="module" src="https://pyscript.net/releases/2023.11.2/core.js"></script>
+
+        <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
+        <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.css">
+        <script type="text/javascript" src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.js"></script>
+
         <py-config>
             packages = ["matplotlib", "pandas","jinja2"]
         </py-config>
@@ -44,6 +49,11 @@
             </div>
         </nav>
 
+        <!-- HTML reference and call to your main python script--> 
+        <section class="pyscript">
+            <script type="py" src="./main.py" config="./pyscript.toml" async></script>
+        </section>
+        
         <!--login form -->
         <div id="disclaimer-message">This unofficial app is for ICA users to generate API/CLI templates based on previously run analyses. 
             <br> 
@@ -81,9 +91,8 @@
         <!--  Dynamic rendering of a table of ICA project names and Ids -->
         <h1 id="step2-message"></h1>
         <h2>A project table will be rendered below after querying ICA</h2>
-        <div id="project-output" hidden>
+        <div id="project-output">
             <h3>Search for a project</h3>
-            <input type="text" id="my-project-query" onkeyup="filterProjectTable()" placeholder="Search for project names..">
             <table id="project-output-inner" class=center></table>
         </div>
 
@@ -100,37 +109,9 @@
             Select Project 
             </button>
         </div>
-        <script type="text/javascript">$(document).ready(function(){$('table').DataTable({
-        "pageLength": 50
-        });});</script>
         
         <div id="step2-selection"></div>
 
-        <!--Dummy function to search table .... Need to update--> 
-        <script>
-            function filterProjectTable() {
-              // Declare variables
-              var input, filter, table, tr, td, i, txtValue;
-              input = document.getElementById("my-project-query");
-              filter = input.value.toUpperCase();
-              table = document.getElementById("project-output-inner");
-              tr = table.getElementsByTagName("tr");
-            
-              // Loop through all table rows, and hide those who don't match the search query
-              for (i = 0; i < tr.length; i++) {
-                td = tr[i].getElementsByTagName("td")[0];
-                if (td) {
-                  txtValue = td.textContent || td.innerText;
-                  if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    tr[i].style.display = "";
-                  } else {
-                    tr[i].style.display = "none";
-                  }
-                }
-              }
-            }
-            </script>
-      </script>
         <hr>
         </section>
 
@@ -140,14 +121,11 @@
             <br>
             You may need to wait a minute for the table to render
         </h2>
-        <div id="analyses-output" hidden>
+        <div id="analyses-output">
             <h3>Search for an analysis</h3>
-            <input type="text" id="my-analysis-query" onkeyup="filterAnalysesTable()" placeholder="Search for analyses names..">
             <table id="analyses-output-inner" class=center></table>
         </div>
-        <script type="text/javascript">$(document).ready(function(){$('table').DataTable({
-        "pageLength": 50
-        });});</script>        
+            
         <div id="step3-selection-form"  class="container">
             <label for="analysis"><b>Enter ICA Analysis Name</b></label>
             <input type="text" id="txt-analysis-name" placeholder="None" name="analysis" required>
@@ -164,30 +142,7 @@
 
         <div id="step3-selection"></div>
         
-        <script>
-            function filterAnalysesTable() {
-              // Declare variables
-              var input, filter, table, tr, td, i, txtValue;
-              input = document.getElementById("my-analysis-query");
-              filter = input.value.toUpperCase();
-              table = document.getElementById("analyses-output-inner");
-              tr = table.getElementsByTagName("tr");
-            
-              // Loop through all table rows, and hide those who don't match the search query
-              for (i = 0; i < tr.length; i++) {
-                td = tr[i].getElementsByTagName("td")[0];
-                if (td) {
-                  txtValue = td.textContent || td.innerText;
-                  if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    tr[i].style.display = "";
-                  } else {
-                    tr[i].style.display = "none";
-                  }
-                }
-              }
-            }
-            </script>
-      </script>
+
         <hr>
         </section>
 
@@ -195,7 +150,10 @@
       <h1 id="step4-message"></h1>
       <div id="step4-selection-form"  class="container">
         <label for="template_type"><b>Generate Template Type</b></label>
-        <input type="text" id="txt-template-type" placeholder="CLI or API" name="template_type" required>
+        <select name="template-type" id="template-type-selection">
+          <option value="API">API</option>
+          <option value="CLI">CLI</option>
+        </select>
         <button 
             type="submit" 
             id="template-type-generator" 
@@ -203,8 +161,9 @@
             py-click="generate_requeue_template"
         >
         Generate Requeue Template 
-        </button>
-    </div>
+        </button> 
+      </div>
+        <!-- <input type="text" id="txt-template-type" placeholder="CLI or API" name="template_type" required> -- >
 
         
         <!-- The requeue template -->
@@ -227,9 +186,6 @@
     </section>
 
         
-      <!-- HTML reference and call to your main python script--> 
-        <section class="pyscript">
-            <script type="py" src="./main.py" config="./pyscript.toml" async></script>
-        </section>
+
     </body>
 </html>

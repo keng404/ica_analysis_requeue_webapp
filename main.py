@@ -592,6 +592,13 @@ async def load_login_info(event):
         #pydom["div#roject-output-inner"].innerHTML = df_window(df)
         #document.getElementById('project-output-inner').innerHTML = df.to_html()
         document.getElementById('project-output-inner').innerHTML = df_html(df)
+
+        new_script = document.createElement('script')
+        new_script.innerHTML  = """$(document).ready(function(){$('#project-output-inner').DataTable({
+            "pageLength": 10
+        });});"""
+        document.getElementById('project-output').appendChild(new_script)
+
         #display(df.to_html(), target="project-output-inner", append="False")
         #display(df_window(df), target="project-output-inner", append="False")
     return display("You are logged in",target="step1-output",append="True")
@@ -614,16 +621,22 @@ async def load_project_selection_info(event):
         raise ValueError(f"Could not get project id for project: {PROJECT_NAME}\nPlease double-check project name exists.")    
     display(f"Fetching all analyses from {PROJECT_NAME}",target ="step2-selection",append="True")    
     analyses_list = await list_project_analyses(authorization_metadata['jwt_token'],analysis_metadata['project_id'])
+    display(f"Fetching Completed\nCreating Table\n",target ="step2-selection",append="True")    
     analyses_table = subset_analysis_metadata_list(analyses_list)
     df = pd.DataFrame(analyses_table, columns = ['Analysis Name', 'Analysis ID','Analysis Start Date','Analysis Status','Pipeline']) 
     df['Analysis Start Date'] = pd.to_datetime(df['Analysis Start Date'], format='%Y-%m-%dT%H:%M:%SZ')
-    df.sort_values(by='Analysis Start Date',ascending=False,inplace = True)
+    #df.sort_values(by='Analysis Start Date',ascending=False,inplace = True)
     ### using slicing to invert dataframe to give ICA default sorting
     #df = df[::-1]
     pydom["div#analyses-output"].style["display"] = "block"
     #display(df, target="project-output-inner", append="False")
     document.getElementById('analyses-output-inner').innerHTML = df_html(df)
 
+    new_script = document.createElement('script')
+    new_script.innerHTML  = """$(document).ready(function(){$('#analyses-output-inner').DataTable({
+            "pageLength": 10
+        });});"""
+    document.getElementById('analyses-output').appendChild(new_script)
     ### show field and submit button for STEP3:
     pydom["div#step3-selection-form"].style["display"] = "block"
 
@@ -703,7 +716,7 @@ def create_download_button(file_of_interest=None):
 #### STEP 4 in HTML
 async def generate_requeue_template(event):
     display("STEP4 starting",target="requeue-template-logging",append="False")
-    TEMPLATE_TYPE = document.getElementById("txt-template-type").value 
+    TEMPLATE_TYPE = document.getElementById("template-type-selection").value 
     if TEMPLATE_TYPE.lower() == "cli":
         display('Collecting info to generate CLI template',target="requeue-template-logging",append="True")
     elif TEMPLATE_TYPE.lower() == "api":
