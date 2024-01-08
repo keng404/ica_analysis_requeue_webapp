@@ -13,11 +13,20 @@
 
         <!-- This script tag bootstraps PyScript -->
         <script type="module" src="https://pyscript.net/releases/2023.11.2/core.js"></script>
-
+        <!-- load in JQuery and DataTables -->
         <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
         <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.css">
         <script type="text/javascript" src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.js"></script>
-
+        <!--load in boostrap JS for tab-based content -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+        <!--load in prismJS -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+        <!--load in prismJS plugins -->
+        <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/toolbar/prism-toolbar.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
         <py-config>
             packages = ["matplotlib", "pandas","jinja2"]
         </py-config>
@@ -186,6 +195,132 @@
     </section>
 
         
+    <section id="learn-the-steps">
+        <h1> Click the 'Teach Me' button to learn more about how to generate analysis requeue templates yourselves</h1>
+        <br><br>
+        <p>
+            Below are Tabs containing API and CLI templates you can use for each step listed above
+            <br><br>
+            For more information, check out <a>https://help.ica.illumina.com</a> or the ICA API swagger page via <a>https://ica.illumina.com/ica/api/swagger/index.html</a>
+            <br> 
+            or contact your local application scientist for more information and trainings
+        </p>
+        <br><br>
+        
+        <button
+                id="learn-api-cli"
+                type="submit" 
+                class="py-button"
+                py-click="learn_api_cli"
+        >
+        Teach Me
+        </button>
 
-    </body>
+        <div id="step1-steps" class="container">
+            <h1>A How-To of STEP1: Login using your ICA credentials</h1>
+            <h2>Learn how to generate JWT token from your credentials</h2>
+            <p>Toggle to tabs to learn more.</p>
+          
+            <ul class="nav nav-tabs">
+              <li class="active"><a data-toggle="tab" href="#step1-cli">CLI</a></li>
+              <li><a data-toggle="tab" href="#step1-api">API</a></li>
+            </ul>
+          
+            <div class="tab-content">
+              <div id="step1-cli" class="tab-pane fade in active">
+                <h3>CLI steps</h3>
+                <!-- <p id="step1-cli-content"></p> -->
+                <pre><code id="step1-cli-content" class="language-bash" data-prismjs-copy="copy"></code>
+                </pre>
+              </div>
+              <div id="step1-api" class="tab-pane fade">
+                <h3>API steps</h3>
+                <!-- <p id="step1-api-content"></p> -->
+                <pre><code id="step1-api-content" class="language-bash" data-prismjs-copy="copy"></code>
+                </pre>
+              </div>
+            </div>
+          </div>
+
+          <div id="step2-steps" class="container">
+            <h1>A How-To of STEP2: Identify ICA project to get ICA project id</h1>
+            <h2>Learn how to grab the alphanumeric id associated with your project</h2>
+            <p>Toggle to tabs to learn more.</p>
+          
+            <ul class="nav nav-tabs">
+              <li class="active"><a data-toggle="tab" href="#step2-cli">CLI</a></li>
+              <li><a data-toggle="tab" href="#step2-api">API</a></li>
+            </ul>
+          
+            <div class="tab-content">
+              <div id="step2-cli" class="tab-pane fade in active">
+                <h3>CLI steps</h3>
+                <!-- <p id="step2-cli-content"></p> -->
+                <pre><code id="step2-cli-content" class="language-bash" data-prismjs-copy="copy"></code>
+                </pre>
+              </div>
+              <div id="step2-api" class="tab-pane fade">
+                <h3>API steps</h3>
+                <!-- <p id="step2-api-content"></p> -->
+                <pre><code id="step2-api-content" class="language-bash" data-prismjs-copy="copy"></code>
+                </pre>
+              </div>
+            </div>
+          </div>
+
+          <div id="step3-steps" class="container">
+            <h1>A How-To of STEP3: Identify analysis to get ICA analysis id</h1>
+            <h2>Learn how to grab the alphanumeric id associated with your analysis run of interest</h2>
+            <p>Toggle to tabs to learn more.</p>
+          
+            <ul class="nav nav-tabs">
+              <li class="active"><a data-toggle="tab" href="#step3-cli">CLI</a></li>
+              <li><a data-toggle="tab" href="#step3-api">API</a></li>
+            </ul>
+          
+            <div class="tab-content">
+              <div id="step3-cli" class="tab-pane fade in active">
+                <h3>CLI steps</h3>
+                <!-- <p id="step3-cli-content"></p> -->
+                <pre><code id="step3-cli-content" class="language-bash" data-prismjs-copy="copy"></code>
+                </pre>
+              </div>
+              <div id="step3-api" class="tab-pane fade">
+                <h3>API steps</h3>
+                <!-- <p id="step3-api-content"></p> -->
+                <pre><code id="step3-api-content" class="language-bash" data-prismjs-copy="copy"></code>
+                </pre>                  
+              </div>
+            </div>
+          </div>
+
+          <div id="step4-steps" class="container">
+            <h1>A How-To of STEP4: Generate requeue template CLI or API</h1>
+            <h2>Learn how to generate API/CLI templates once you have your project id and analysis id</h2>
+            <p>Toggle to tabs to learn more.</p>
+          
+            <ul class="nav nav-tabs">
+              <li class="active"><a data-toggle="tab" href="#step4-cli">CLI</a></li>
+              <li><a data-toggle="tab" href="#step4-api">API</a></li>
+            </ul>
+          
+            <div class="tab-content">
+              <div id="step4-cli" class="tab-pane fade in active">
+                <h3>CLI steps</h3>
+                <!--<p id="step4-cli-content"></p>-->
+                <pre><code id="step4-cli-content" class="language-bash" data-prismjs-copy="copy"></code>
+                </pre>
+              </div>
+              <div id="step4-api" class="tab-pane fade">
+                <h3>API steps</h3>
+                <!-- <p id="step4-api-content"></p> -->
+                <pre><code id="step4-api-content" class="language-bash" data-prismjs-copy="copy"></code>
+                </pre>
+              </div>
+            </div>
+          </div>
+
+    </section>
+
+</body>
 </html>

@@ -24,31 +24,43 @@ pydom["h1#step3-message"].html = step3_message
 step4_message = "STEP4: Generate requeue template CLI or API"
 pydom["h1#step4-message"].html = step4_message
 #######################
+### hide elements until we are ready
 pydom["div#step2-selection-form"].style["display"] = "none"
 pydom["div#step3-selection-form"].style["display"] = "none"
 pydom["div#step4-selection-form"].style["display"] = "none"
 pydom["div#requeue-template-download"].style["display"] = "none"
+pydom["section#learn-the-steps"].style["display"] = "none"
+
 ################
 ICA_BASE_URL = 'https://ica.illumina.com/ica'
 import base64
+#### info we'll collect from the html 
+authorization_metadata = dict()
+analysis_metadata = dict()
+analysis_metadata['step4-api'] = []
 ##########################
+async def curlify(method="GET",endpoint="FOOBAR",header={},body={}):
+    curlified_command_components = []
+    curlified_command_components.append(f"curl -X '{method}' \\")
+    curlified_command_components.append(f" '{endpoint}' \\")
+    for key in list(header.keys()):
+        curlified_command_components.append(f"-H '{key}:" + f" {header[key]}' \\")
+    if len(body) > 0:
+        rest_of_command = json.dumps(body, indent = 4)
+        curlified_command_components.append(f"-d '{rest_of_command}'")
+    # strip out any trailing slashes
+    curlified_command_components[len(curlified_command_components)-1].strip('\\')
+    curlified_command = "\n".join(curlified_command_components)
+    print(f"{curlified_command}")
+    return curlified_command
+
 ### helper functons to paginate pandas tables
-base_html = """
-%s<script type="text/javascript">$(document).ready(function(){$('table').DataTable({
-    "pageLength": 50
-});});</script>
-"""
 
 def df_html(df):
-    """HTML table with pagination and other goodies"""
+    """HTML table """
     df_html = df.to_html()
     return df_html
 
-def df_window(df):
-    """Open dataframe in browser window using a temporary file"""
-    with NamedTemporaryFile(delete=False, suffix='.html') as f:
-        f.write(df_html(df))
-    webbrowser.open(f.name)
 ##################    
 async def get_jwt(username,password,tenant = None):
     #######
@@ -69,6 +81,8 @@ async def get_jwt(username,password,tenant = None):
     #display(token_url)
     #display(init_headers)
     response = await pyfetch(url=token_url,method = 'POST',headers=init_headers)
+    curl_command = await curlify(method="POST",endpoint=token_url,header=init_headers)
+    analysis_metadata['step1-api'] = curl_command
     status = f"Request status: {response.status}"
     #display(status)
     jwt = await response.json()
@@ -95,6 +109,10 @@ async def list_projects(jwt_token,max_retries=20):
     try:
         #display(full_url)
         projectPagedList = await pyfetch(full_url,method = 'GET',headers=headers)
+        ##########################
+        curl_command = await curlify(method="GET",endpoint=full_url,header=headers)
+        analysis_metadata['step2-api'] = curl_command
+        ################################
         projectPagedListResponse = await projectPagedList.json()
         totalRecords = projectPagedListResponse['totalItemCount']
         response_code = projectPagedList.status
@@ -170,6 +188,10 @@ async def list_project_analyses(jwt_token,project_id,max_retries=20):
             if num_tries > 1:
                 print(f"NUM_TRIES:\t{num_tries}\tTrying to get analyses  for project {project_id}")
             projectAnalysisPagedList = await pyfetch(full_url,method = 'GET',headers=headers)
+            ##############
+            curl_command = await curlify(method="GET",endpoint=full_url,header=headers)
+            analysis_metadata['step3-api'] = curl_command
+            ###################
             projectAnalysisPagedList_response = await projectAnalysisPagedList.json()
             totalRecords = projectAnalysisPagedList_response['totalItemCount']
             response_code = projectAnalysisPagedList.status
@@ -251,6 +273,10 @@ async def get_pipeline_id(pipeline_code, jwt_token,project_name,project_id=None)
     try:
         #print(f"FULL_URL: {full_url}")
         pipelinesPagedList =  await pyfetch(full_url, method='GET', headers=headers)
+        #####
+        curl_command = await curlify(method="GET",endpoint=full_url,header=headers)
+        analysis_metadata['step4-api'].append("<h3>#Grab pipeline identifier</h3><br>This tells ICA what pipeline to run. Via the CLI you can just provide the [ PIPELINE_NAME ] in single quotes instead of the pipeline id<br>" + curl_command)
+        #####     
         pipelinesPagedList_response = await pipelinesPagedList.json()
         if 'totalItemCount' in pipelinesPagedList_response.keys():
             totalRecords = pipelinesPagedList_response['totalItemCount']
@@ -291,6 +317,10 @@ async def get_analysis_storage_id(jwt_token, storage_label=""):
     try:
         # Retrieve the list of analysis storage options.
         api_response = await pyfetch(full_url, method = 'GET', headers=headers)
+        #####
+        curl_command = await curlify(method="GET",endpoint=full_url,header=headers)
+        analysis_metadata['step4-api'].append("<h3>#Grab analysis storage identifier</h3><br>This sets the size of result data that can be sent back to ICA<br>" + curl_command)
+        #####        
         api_responses = await api_response.json()
         #pprint(api_response, indent = 4)
         if storage_label not in ['Large', 'Medium', 'Small','XLarge','2XLarge','3XLarge']:
@@ -337,24 +367,16 @@ async def get_activation_code(jwt_token,project_id,pipeline_id,data_inputs,input
     #display(full_url)
     #display(collected_parameters)
     response = await pyfetch(full_url, method = 'POST', headers = headers, body = json.dumps(collected_parameters))
+    #####
+    curl_command = await curlify(method="POST",endpoint=full_url,header=headers, body = collected_parameters)
+    analysis_metadata['step4-api'].append("<h3>#Grab activation code</h3><br>" + curl_command)
+    #####
     #response = await pyfetch(full_url, method = 'POST', headers = headers, data = json.dumps(collected_parameters))
     #pprint(response.json())
     entitlement_details = await response.json()
     #display(entitlement_details)
     return entitlement_details['id']
 ###############################################
-async def curlify(method="GET",endpoint="FOOBAR",header={},body={}):
-    curlified_command_components = []
-    curlified_command_components.append(f"curl -X '{method}' \\")
-    curlified_command_components.append(f" '{endpoint}' \\")
-    for key in list(header.keys()):
-        curlified_command_components.append(f"-H '{key}:" + f" {header[key]}' \\")
-    if len(body) > 0:
-        rest_of_command = json.dumps(body, indent = 4)
-        curlified_command_components.append(f"-d '{rest_of_command}'")
-    curlified_command = "\n".join(curlified_command_components)
-    print(f"{curlified_command}")
-    return curlified_command
 async def launch_pipeline_analysis_cwl(jwt_token,project_id,pipeline_id,data_inputs,input_parameters,user_tags,storage_analysis_id,user_pipeline_reference,workflow_language,make_template=False):
     api_base_url = ICA_BASE_URL + "/rest"
     endpoint = f"/api/projects/{project_id}/analysis:{workflow_language}"
@@ -530,6 +552,10 @@ async def get_cwl_input_template(pipeline_code, jwt_token,project_name, fixed_in
     #display(f"ANALYSIS_INPUTS_URL: {full_input_endpoint}")
     try:
         inputs_response = await pyfetch(full_input_endpoint, method='GET', headers=headers)
+        #####
+        curl_command = await curlify(method="GET",endpoint=full_input_endpoint,header=headers)
+        analysis_metadata['step4-api'].append("<h3>#Grab dataInputs JSON from previous analysis</h3><br>" + curl_command)
+        #####
         inputs_responses = await inputs_response.json()
         #display(inputs_responses)
         input_data_example = inputs_responses['items']
@@ -541,6 +567,10 @@ async def get_cwl_input_template(pipeline_code, jwt_token,project_name, fixed_in
     #display(f"ANALYSIS_PARAMETERS_URL: {full_parameters_endpoint}")
     try:
         parameter_response = await pyfetch(full_parameters_endpoint, method = 'GET', headers=headers)
+        #####
+        curl_command = await curlify(method="GET",endpoint=full_parameters_endpoint,header=headers)
+        analysis_metadata['step4-api'].append("<h3>#Grab parameters JSON from previous analysis</h3><br>" + curl_command)
+        #####
         parameter_responses = await parameter_response.json()
         parameter_settings = parameter_responses['items']
     except:
@@ -552,9 +582,6 @@ async def get_cwl_input_template(pipeline_code, jwt_token,project_name, fixed_in
     templates['parameter_settings'] = parameter_settings_template
     return templates
 #####################
-#### info we'll collect from the html 
-authorization_metadata = dict()
-analysis_metadata = dict()
 ##########################################
 #### STEP 1 in HTML
 async def load_login_info(event):
@@ -584,6 +611,7 @@ async def load_login_info(event):
     if PROJECT_NAME is None:
         project_table = await list_projects(jwt_token)
         df = pd.DataFrame(project_table, columns = ['ICA Project Name', 'ICA Project ID']) 
+
         pydom["div#project-output"].style["display"] = "block"
 
         ### show field and submit button for STEP2:
@@ -625,6 +653,7 @@ async def load_project_selection_info(event):
     analyses_table = subset_analysis_metadata_list(analyses_list)
     df = pd.DataFrame(analyses_table, columns = ['Analysis Name', 'Analysis ID','Analysis Start Date','Analysis Status','Pipeline']) 
     df['Analysis Start Date'] = pd.to_datetime(df['Analysis Start Date'], format='%Y-%m-%dT%H:%M:%SZ')
+
     #df.sort_values(by='Analysis Start Date',ascending=False,inplace = True)
     ### using slicing to invert dataframe to give ICA default sorting
     #df = df[::-1]
@@ -773,10 +802,12 @@ async def generate_requeue_template(event):
         #create_download_button(cli_template)
         #display(cli_template,target="my_template",append="False")
     elif TEMPLATE_TYPE.lower() == "api":
+        ####################################
         display('Generating API template',target="requeue-template-logging",append="True")
         test_launch = await launch_pipeline_analysis_cwl(authorization_metadata['jwt_token'], analysis_metadata['project_id'], pipeline_id, my_data_inputs, my_params,my_tags, my_storage_analysis_id, pipeline_run_name,workflow_language,make_template = True)
         #create_download_button(test_launch)
         pydom["script#my_template"].style["display"] = "block"
+        #display(test_launch,target="my_template",append="False")
         document.getElementById('my_template').innerHTML = test_launch
         create_download_button(file_of_interest=test_launch)
         display(f"Download button will download file locally, named: {test_launch}",target="requeue-template-logging",append="True")
@@ -786,5 +817,43 @@ async def generate_requeue_template(event):
         console.error('Please retry entering a requeue template type [API or CLI]')
         alert('Please retry entering a requeue template type [API or CLI]')
         raise ValueError(f"Please retry entering a requeue template type [API or CLI]. You entered the following as a requeue template type [ {TEMPLATE_TYPE} ]") 
+    # show learn more section    
+    pydom["section#learn-the-steps"].style["display"] = "block"
     return display("STEP4 complete",target="requeue-template-logging",append="True")
- #######################   
+#########################  
+### adding brief text and full fledged API/CLI steps to generate template based on user input
+async def learn_api_cli(event):
+    # STEP1
+    new_element = document.getElementById('step1-cli-content')
+    new_element.innerHTML =  "icav2 tokens create"
+    #document.getElementById('step1-cli').appendChild(new_element)
+    new_element = document.getElementById('step1-api-content')
+    new_element.innerHTML = analysis_metadata['step1-api']
+    #document.getElementById('step1-api').appendChild(new_element)
+    # STEP2
+    new_element = document.getElementById('step2-cli-content')
+    new_element.innerHTML = f"icav2 projects list --access-token '{authorization_metadata['jwt_token']}'"
+    #document.getElementById('step2-cli').appendChild(new_element) 
+    new_element = document.getElementById('step2-api-content')
+    new_element.innerHTML = analysis_metadata['step2-api']
+    #document.getElementById('step2-api').appendChild(new_element)
+    # STEP3
+    new_element = document.getElementById('step3-cli-content')
+    #new_element.innerHTML = "hello"
+    new_element.innerHTML = f"icav2 projectanalyses list --project-id {analysis_metadata['project_id']}  --access-token '{authorization_metadata['jwt_token']}'"
+    #document.getElementById('step3-cli').appendChild(new_element)
+    new_element = document.getElementById('step3-api-content')
+    new_element.innerHTML = analysis_metadata['step3-api']
+    #document.getElementById('step3-api').appendChild(new_element)
+    # STEP4
+    new_element = document.getElementById('step4-cli-content')
+    new_element.innerHTML = f"#Grab dataInputs<br><br>icav2 projectanalyses input {analysis_metadata['analysis_id']} --project-id {analysis_metadata['project_id']}  --access-token '{authorization_metadata['jwt_token']}'<br><br>Currently you cannot grab parameter configurations from previous analyses via the CLI<br>You can grab all possible parameter configurations via the API. Click API tab for more info<br>"
+    #document.getElementById('step4-cli').appendChild(new_element)
+    new_element = document.getElementById('step4-api-content')
+    full_steps = '<br>'.join(analysis_metadata['step4-api'])
+    #display(full_steps)
+    new_element.innerHTML = full_steps
+    #document.getElementById('step4-api').appendChild(new_element)
+    ### render the howto section
+    pydom["section#learn-the-steps"].style["display"] = "block"
+    return 0
