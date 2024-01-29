@@ -469,7 +469,10 @@ def get_pipeline_request_template(jwt_token, project_id, pipeline_name, data_inp
         else:
         # deal with parameters with multiple values
             if len(params[k][parameter_of_interest])  > 0:
-                v_string = ','.join([f"'{x}'" for x in params[k][parameter_of_interest]])
+                # remove single-quotes 
+                simplified_string = [x.strip('\'') for x in params[k][parameter_of_interest]]
+                # stylize multi-value parameters
+                v_string = ','.join([f"'{x}'" for x in simplified_string])
                 cli_parameters_template.append(["--parameters",f"{params[k]['code']}:\"{v_string}\""])
     cli_metadata_template = ["--access-token",f"'{jwt_token}'","--project-id",f"{project_id}","--storage-size",f"{storage_size}"]
     if workflow_language == "cwl":
