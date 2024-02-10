@@ -468,10 +468,15 @@ def get_pipeline_request_template(jwt_token, project_id, pipeline_name, data_inp
                 cli_parameters_template.append(["--parameters",f"{params[k]['code']}:'{params[k][parameter_of_interest]}'"])
         else:
         # deal with parameters with multiple values
-            if len(simplified_string) > 1:
-                cli_parameters_template.append(["--parameters",f"{params[k]['code']}:\"{v_string}\""])
-            elif len(simplified_string) > 0 and simplified_string[0] != '':
-                cli_parameters_template.append(["--parameters",f"{params[k]['code']
+            if len(params[k][parameter_of_interest])  > 0:
+                # remove single-quotes 
+                simplified_string = [x.strip('\'') for x in params[k][parameter_of_interest]]
+                # stylize multi-value parameters
+                v_string = ','.join([f"'{x}'" for x in simplified_string])
+                if len(simplified_string) > 1:
+                    cli_parameters_template.append(["--parameters",f"{params[k]['code']}:\"{v_string}\""])
+                elif len(simplified_string) > 0 and simplified_string[0] != '':
+                    cli_parameters_template.append(["--parameters",f"{params[k]['code']}:{v_string}"])
     cli_metadata_template = ["--access-token",f"'{jwt_token}'","--project-id",f"{project_id}","--storage-size",f"{storage_size}"]
     if workflow_language == "cwl":
         cli_metadata_template.append("--type-input STRUCTURED")
