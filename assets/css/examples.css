@@ -83,6 +83,12 @@ input[type=text], input[type=password] {
   box-sizing: border-box;
 }
 
+
+input[type=text] {
+  white-space:pre;
+  padding: 10px 15px;  
+}
+
 /* Add a hover effect for buttons */
 button:hover {
   opacity: 0.8;
@@ -99,7 +105,6 @@ button:hover {
 #table-wrapper {
  	height: 100px;
 	width: 400px;
-	padding: 0px;
 	margin: 0px auto 0px auto;
 	overflow: auto;
 	background-color: yellow;
