@@ -441,6 +441,8 @@ def flatten_list(nested_list):
     return flat_list
     
 def get_pipeline_request_template(jwt_token, project_id, pipeline_name, data_inputs, params,tags, storage_size, pipeline_run_name,workflow_language):
+    user_pipeline_reference_alias = pipeline_run_name.replace(" ","_")
+    pipeline_run_name = user_pipeline_reference_alias
     cli_template_prefix = ["icav2","projectpipelines","start",f"{workflow_language}",f"'{pipeline_name}'","--user-reference",f"{pipeline_run_name}"]
     #### user tags for input
     cli_tags_template = []
@@ -642,6 +644,7 @@ async def load_project_selection_info(event):
     display("STEP2 starting",target ="step2-selection",append="False")
     # Create a Python proxy for the callback function
     PROJECT_NAME =  document.getElementById("txt-project-name").value 
+    console.log(f"{PROJECT_NAME}")
     pydom["div#step2-selection"].html = PROJECT_NAME
     display(f'Selected project name is: {PROJECT_NAME}',target ="step2-selection",append="True")
     try:
@@ -785,6 +788,7 @@ async def generate_requeue_template(event):
     dateTimeObj = dt.now()
     timestampStr = dateTimeObj.strftime("%Y%b%d_%H_%M_%S_%f")
     pipeline_run_name = analysis_metadata['analysis_name'] + "_requeue_" + timestampStr 
+    pipeline_run_name = pipeline_run_name.replace(" ","_")
     #print(f"Setting up pipeline analysis for {pipeline_run_name}")
     my_params = job_templates['parameter_settings']
     #display(my_params)
