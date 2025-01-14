@@ -627,13 +627,16 @@ async def load_login_info(event):
 
         #pydom["div#roject-output-inner"].innerHTML = df_window(df)
         #document.getElementById('project-output-inner').innerHTML = df.to_html()
-        document.getElementById('project-output-inner').innerHTML = df_html(df)
-
-        new_script = document.createElement('script')
-        new_script.innerHTML  = """$(document).ready(function(){$('#project-output-inner').DataTable({
-            "pageLength": 10
-        });});"""
-        document.getElementById('project-output').appendChild(new_script)
+        if document.getElementById('project-output-inner').innerHTML  == "":
+            document.getElementById('project-output-inner').innerHTML = df_html(df)
+    
+            new_script = document.createElement('script')
+            new_script.innerHTML  = """$(document).ready(function(){$('#project-output-inner').DataTable({
+                "pageLength": 10
+            });});"""
+            document.getElementById('project-output').appendChild(new_script)
+        else:
+            document.getElementById('project-output-inner').innerHTML = df_html(df)
 
         #display(df.to_html(), target="project-output-inner", append="False")
         #display(df_window(df), target="project-output-inner", append="False")
@@ -668,13 +671,17 @@ async def load_project_selection_info(event):
     #df = df[::-1]
     pydom["div#analyses-output"].style["display"] = "block"
     #display(df, target="project-output-inner", append="False")
-    document.getElementById('analyses-output-inner').innerHTML = df_html(df)
-
-    new_script = document.createElement('script')
-    new_script.innerHTML  = """$(document).ready(function(){$('#analyses-output-inner').DataTable({
-            "pageLength": 10
-        });});"""
-    document.getElementById('analyses-output').appendChild(new_script)
+    if document.getElementById('analyses-output-inner').innerHTML == "":
+        document.getElementById('analyses-output-inner').innerHTML = df_html(df)
+    
+        new_script = document.createElement('script')
+        new_script.innerHTML  = """$(document).ready(function(){$('#analyses-output-inner').DataTable({
+                "pageLength": 10
+            });});"""
+        document.getElementById('analyses-output').appendChild(new_script)
+    else:
+        document.getElementById('analyses-output-inner').innerHTML = df_html(df)
+ 
     ### show field and submit button for STEP3:
     pydom["div#step3-selection-form"].style["display"] = "block"
 
@@ -690,6 +697,10 @@ async def load_analysis_selection_info(event):
     try:
         if ANALYSIS_NAME in analysis_metadata['metadata_by_analysis_id'].keys():
             analysis_metadata['analysis_id'] = ANALYSIS_NAME
+            display(f'analysis id is : {ANALYSIS_NAME}',target ="step3-selection",append="True")
+            #ANALYSIS_ID_LOOKUP = analysis_metadata['metadata_by_analysis_name'][ANALYSIS_NAME]
+            #ANALYSIS_NAME = ANALYSIS_ID_LOOKUP['userReference']
+            #analysis_metadata['analysis_name'] = ANALYSIS_NAME
             pydom["div#step4-selection-form"].style["display"] = "block"
         elif ANALYSIS_NAME in analysis_metadata['metadata_by_analysis_name'].keys():
             #ANALYSIS_ID = await get_project_analysis_id(authorization_metadata['jwt_token'],analysis_metadata['project_id'],analysis_metadata['analysis_name'])
@@ -705,6 +716,7 @@ async def load_analysis_selection_info(event):
     except:
         if ANALYSIS_NAME in analysis_metadata['metadata_by_analysis_id'].keys():
             analysis_metadata['analysis_id'] = ANALYSIS_NAME
+            display(f'analysis id is : {ANALYSIS_NAME}',target ="step3-selection",append="True")
             pydom["div#step4-selection-form"].style["display"] = "block"
         else:
             console.error('Please retry entering an analysis name')
@@ -768,9 +780,9 @@ async def generate_requeue_template(event):
     analyses_list =[ analysis_metadata['metadata_by_analysis_id'][analysis_metadata['analysis_id']] ]
     #analyses_list = await list_project_analyses(authorization_metadata['jwt_token'],analysis_metadata['project_id'])
     for aidx,project_analysis in enumerate(analyses_list):
-        if project_analysis['userReference'] == analysis_metadata['analysis_name']:
+        if project_analysis['userReference'] == analysis_metadata['analysis_name'] or project_analysis['id'] == analysis_metadata['analysis_name']:
             analysis_id = project_analysis['id']
-            #print(f"Found Analysis with name {analysis_metadata['analysis_name']} with id : {analysis_id}\n")
+            display(f"Found Analysis with name {analysis_metadata['analysis_name']} with id : {analysis_id}\n",target="requeue-template-logging",append="True")
             pipeline_id = project_analysis['pipeline']['id']
             pipeline_name = project_analysis['pipeline']['code']
             workflow_language = project_analysis['pipeline']['language'].lower()
