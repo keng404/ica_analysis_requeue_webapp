@@ -13,6 +13,7 @@ from datetime import datetime as dt
 ####################################
 from tempfile import NamedTemporaryFile
 import webbrowser
+import re
 ###############
 step1_message = "STEP1: Login using your ICA credentials"
 pydom["h1#step1-message"].html = step1_message
@@ -439,7 +440,26 @@ def flatten_list(nested_list):
     flat_list = []
     flatten(nested_list)
     return flat_list
-    
+
+def prettify_cli_template(cli_args):
+    idxs_of_interest = []
+    deconstructed_template = []
+    final_template_str = None
+    ## pull out tokens of interest
+    for idx,val in enumerate(cli_args):
+        if re.search("^--",val) is not None:
+            idxs_of_interest.append(idx-1)
+    if len(idxs_of_interest) > 0:
+        for idx,val in enumerate(cli_args):
+            if idx not in idxs_of_interest:
+                deconstructed_template.append(val)
+            else:
+                new_str = f"{val} \\\n"
+                deconstructed_template.append(new_str)
+        final_template_str = " ".join(deconstructed_template)
+    ### go and add \\\n to tokens of interest
+    return final_template_str
+
 def get_pipeline_request_template(jwt_token, project_id, pipeline_name, data_inputs, params,tags, storage_size, pipeline_run_name,workflow_language):
     user_pipeline_reference_alias = pipeline_run_name.replace(" ","_")
     pipeline_run_name = user_pipeline_reference_alias
@@ -484,6 +504,12 @@ def get_pipeline_request_template(jwt_token, project_id, pipeline_name, data_inp
         cli_metadata_template.append("--type-input STRUCTURED")
     full_cli = [cli_template_prefix,cli_tags_template,cli_inputs_template,cli_parameters_template,cli_metadata_template]
     cli_template = ' '.join(flatten_list(full_cli))
+
+    ## add newlines and create 'pretty' template
+    new_cli_template = prettify_cli_template(flatten_list(full_cli))
+    if new_cli_template is not None:
+        cli_template = new_cli_template
+    
     ######
     pipeline_run_name_alias = pipeline_run_name.replace(" ","_")
     #print(f"Writing your cli job template out to {pipeline_run_name_alias}.cli_job_template.txt for future use.\n")
