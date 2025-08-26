@@ -616,6 +616,359 @@ async def get_cwl_input_template(pipeline_code, jwt_token,project_name, fixed_in
     templates['parameter_settings'] = parameter_settings_template
     return templates
 #####################
+###################################################
+async def get_cli_template_jsoninputform(jwt_token, project_id, pipeline_name, analysis_id,tags, storage_size, pipeline_run_name,workflow_language):
+    user_pipeline_reference_alias = pipeline_run_name.replace(" ","_")
+    pipeline_run_name = user_pipeline_reference_alias
+    cli_template_prefix = ["icav2","projectpipelines","start",f"{workflow_language}json",f"'{pipeline_name}'","--user-reference",f"{pipeline_run_name}"]
+    #### user tags for input
+    cli_tags_template = []
+    for k,v in enumerate(tags):
+        cli_tags_template.append(["--user-tag",v])
+    ############################################
+    inputform_values = await get_inputform_values(jwt_token,project_id,analysis_id)
+    cli_input_form_values_dict = collect_clidict_jsoninputform(inputform_values)
+    print(f"cli_input_form_values_dict: {cli_input_form_values_dict}")
+    cli_input_form_values = clidict_to_commandline(cli_input_form_values_dict)
+    print(f"cli_input_form_values: {cli_input_form_values}")
+    ############################################
+    cli_metadata_template = ["--access-token",f"'{jwt_token}'","--project-id",f"{project_id}","--storage-size",f"{storage_size}"]
+    full_cli = [cli_template_prefix,cli_tags_template,cli_input_form_values,cli_metadata_template]
+    cli_template = ' '.join(flatten_list(full_cli))
+    ## add newlines and create 'pretty' template
+    new_cli_template = prettify_cli_template(flatten_list(full_cli))
+    if new_cli_template is not None:
+        cli_template = new_cli_template
+
+    ######
+    pipeline_run_name_alias = pipeline_run_name.replace(" ","_")
+    print(f"Writing your cli job template out to {pipeline_run_name_alias}.cli_job_template.txt for future use.\n")
+    with open(f"{pipeline_run_name_alias}.cli_job_template.txt", "w") as outfile:
+        outfile.write(f"{cli_template}")
+    print("Also printing out the CLI template to screen\n")
+    return(f"{pipeline_run_name_alias}.cli_job_template.txt")
+######################################
+
+def string_to_boolean(s):
+    if s.lower() == 'true':
+        return True
+    elif s.lower() == 'false':
+        return False
+    else:
+        return s
+
+def choices_conversion(choices,val):
+    choices_dict = dict()
+    for idx,choice in enumerate(choices):
+        choices_dict[choice['value']] = choice['text']
+    if val in list(choices_dict.keys()):
+        return choices_dict[val]
+    else:
+        return val
+
+
+
+async def get_inputform_values(jwt_token,project_id,analysis_id):
+    api_base_url = ICA_BASE_URL + "/rest"
+    endpoint = f"/api/projects/{project_id}/analyses/{analysis_id}/inputFormValues"
+    full_url = api_base_url + endpoint
+    headers = dict()
+    headers['accept'] = 'application/vnd.illumina.v4+json'
+    #headers['Content-Type'] = 'application/vnd.illumina.v4+json'
+    #headers['X-API-Key'] = api_key
+    headers['Authorization'] =  'Bearer ' + jwt_token
+    #print(f"get_inputform_values_URL: {full_url}")
+    try:
+        #esponse = requests.get(full_url, headers=headers)
+        response = await pyfetch(full_url,method = 'GET',headers=headers)
+        input_form_values = await response.json()
+        input_form_values = input_form_values['items']
+        ###########
+        curl_command = await curlify(method="GET",endpoint=full_url,header=headers)
+        analysis_metadata['step4-api'].append("<h3>#Grab parameters JSON from previous analysis</h3><br>" + curl_command)
+        #############3
+        #input_form_values = json.dumps(input_form_values)
+        ##print("Found input form values")
+        ##pprint(input_form_values,indent=4)
+    except:
+        pprint(response,indent=4)
+        input_form_values = None
+    return input_form_values
+##
+
+### add to main script
+async def submit_jsoninputform(jwt_token,project_id,pipeline_id,api_dict,user_tags,storage_analysis_id,user_pipeline_reference,workflow_language,make_template=False):
+    api_base_url = ICA_BASE_URL + "/rest"
+    endpoint = f"/api/projects/{project_id}/analysis:{workflow_language}Json"
+    full_url = api_base_url + endpoint
+    headers = dict()
+    headers['accept'] = 'application/vnd.illumina.v4+json'
+    ##headers['Content-Type'] = 'application/vnd.illumina.v4+json'
+    ##headers['X-API-Key'] = api_key
+    headers['Authorization'] =  'Bearer ' + jwt_token
+    ######## create body
+    collected_parameters = {}
+    collected_parameters['userReference'] = user_pipeline_reference
+    collected_parameters['analysisStorageId'] = storage_analysis_id
+    collected_parameters["tags"] = {}
+    collected_parameters["tags"]["technicalTags"] = []
+    collected_parameters["tags"]["userTags"] = user_tags
+    collected_parameters["tags"]["referenceTags"] = []
+    collected_parameters["pipelineId"] = pipeline_id
+    collected_parameters["projectId"] = project_id
+    collected_parameters['inputFormValues'] = api_dict
+    if make_template is True:
+        user_pipeline_reference_alias = user_pipeline_reference.replace(" ","_")
+        api_template = {}
+        api_template['headers'] = dict(headers)
+        api_template['data'] = collected_parameters
+        curl_command = await curlify(method="POST",endpoint=full_url,header=api_template['headers'],body=api_template['data'])
+        ##print(f"Writing out template to {user_pipeline_reference_alias}.api_job_template.txt")
+        ##print("Please feel free to edit before submitting")
+        with open(f"{user_pipeline_reference_alias}.api_job_template.txt", "w") as outfile:
+            outfile.write(f"{curl_command}")
+        ##print("Also printing out the API template to screen\n")
+        #print(f"{curl_command}")
+        return(f"{user_pipeline_reference_alias}.api_job_template.txt")
+        
+        ##########################################
+    else:
+        #response = requests.post(full_url, headers = headers, data = json.dumps(collected_parameters))
+        response = await pyfetch(url=full_url,method = 'POST',headers=headers,data = json.dumps(collected_parameters))
+        launch_details = await response.json()
+        pprint(launch_details, indent=4)
+    return launch_details
+
+def collect_clidict_jsoninputform(json_response):
+    cli_dict = dict()
+    cli_dict['field'] = dict() #### strings and booleans to a specific field
+    cli_dict['field-data'] = dict()  #### data associated to a specific field
+    cli_dict['group'] = dict() #### strings and booleans to groups of field(s) they can be applied broadly to all samples
+    cli_dict['group-data'] = dict() #### data associated to groups of field(s) they can be applied broadly to all samples
+    for idx,fields in enumerate(json_response):
+        ### skip elements that are SECTION type
+        if fields['type'].upper() == "SECTION":
+            print(f"Skipping {fields['id']}")
+        ##### if element is a datatype
+        elif fields['type'].upper() == "DATA":
+            if fields['hidden'] is not True:
+                if 'dataValues' in list(fields.keys()):
+                    cli_dict['field-data'][fields['id']] =[ x['dataId'] for x in fields['dataValues'] ]
+        elif fields['type'].upper() == "FIELDGROUP":
+            group_name = fields['id']
+            ### groupValues
+            if 'groupValues' in fields.keys() and fields['hidden'] is not True and fields['disabled'] is not True:
+                group_values = fields['groupValues']
+                for idx,param_g in enumerate(group_values):
+                    #index_num = f"index{idx+1}"
+                    index_num = f"{idx+1}"
+                    for idx1,param in enumerate(param_g['values']):
+                        field_name = param['id']
+                        name_components = [group_name,index_num,field_name]
+                        name_str = ".".join(name_components)
+                        if len(param['values']) > 0:
+                            data_values = []
+                            field_values = []
+                            for p in param['values']:
+                                my_bool = re.search("^fol.",p) is not None or re.search("^fil.",p) is not None
+                                if re.search("^fol.",p) is not None or re.search("^fil.",p) is not None:
+                                    data_values.append(p)
+                                elif re.search("^fol.",p) is None and re.search("^fil.",p) is None:
+                                    field_values.append(p)
+                            if len(data_values) > 0:
+                                cli_dict['group-data'][name_str] = data_values
+                            if len(field_values) > 0:
+                                cli_dict['group'][name_str] = field_values
+            ### fields
+            if 'fields' in fields.keys():
+                group_fields = fields['fields']
+                for idx,param in enumerate(group_fields):
+                    index_num = f"index{idx+1}"
+                    if param['hidden'] is not True and param['disabled'] is not True and 'values' in param.keys():
+                        field_name = param['id']
+                        name_components = [group_name,index_num,field_name]
+                        name_str = ".".join(name_components)
+                        new_values = None
+                        ### checkbox is of boolean type
+                        if param['type'].upper() in ["CHECKBOX"]:
+                            new_values = [ string_to_boolean(x) for x in param['values'] ]
+                        if param['type'].upper() in ["INTEGER"]:
+                            new_values = [ int(x) for x in param['values'] ]
+                        if new_values is not None:
+                            param['values'] = new_values
+                        if len(param['values']) > 0:
+                            cli_dict['group'][name_str] = param['values']
+                    elif param['hidden'] is not True and param['disabled'] is not True and 'dataValues' in param.keys():
+                        field_name = param['id']
+                        name_components = [group_name,index_num,field_name]
+                        name_str = ".".join(name_components)
+                        if len(param['dataValuues']) > 0:
+                            cli_dict['group-data'][name_str] = param['dataValues']
+
+        else:
+        ### otherwise grab values
+            if fields['hidden'] is not True and fields['disabled'] is not True:
+                if 'values' in list(fields.keys()):
+                    new_values = None
+                    ### checkbox is of boolean type
+                    if fields['type'].upper() in ["CHECKBOX"]:
+                        new_values = [ string_to_boolean(x) for x in fields['values'] ]
+                    if fields['type'].upper() in ["INTEGER"]:
+                        new_values = [ int(x) for x in fields['values'] ]
+                    if new_values is not None:
+                        fields['values'] = new_values
+                    if len(fields['values']) > 0:
+                        cli_dict['field'][fields['id']] = fields['values']
+    return cli_dict
+####x = collect_clidict_jsoninputform(d['items'])
+#$pprint(x)
+def handle_cli_bool(val):
+    if val is True:
+        return "true"
+    elif val is False:
+        return "false"
+    else:
+        return val
+
+def clidict_to_commandline(cli_dict):
+    cli_line = []
+    cli_flags = ["field-data","field","group-data","group"]
+    for flag in cli_flags:
+        for k in cli_dict[flag].keys():
+            v = cli_dict[flag][k]
+            v = [handle_cli_bool(x) for x in v]
+            if len(v) == 1:
+                cli_str = f"--{flag} " + k + ":"  + f"{v[0]}"
+                cli_line.append(cli_str)
+            else:
+                cli_str = f"--{flag} " + k + ":"  + ",".join(v)
+                cli_line.append(cli_str)
+    return cli_line
+
+##y = clidict_to_commandline(x)
+##print(y)
+
+
+def collect_apidict_jsoninputform(json_response):
+    api_dict = dict()
+    api_dict['fields'] = []
+    api_dict['groups'] = []
+    for idx,fields in enumerate(json_response):
+        ### skip elements that are SECTION type
+        if fields['type'].upper() == "SECTION":
+            print(f"Skipping {fields['id']}")
+        ##### if element is a datatype
+        elif fields['type'].upper() == "DATA":
+            if fields['hidden'] is not True and fields['disabled'] is not True:
+                if 'dataValues' in list(fields.keys()):
+                    param_dict = dict()
+                    param_dict['id'] = fields['id']
+                    param_dict['dataValues'] = [ x['dataId'] for x in fields['dataValues'] ]
+                    if len(param_dict['dataValues']) > 0:
+                        api_dict['fields'].append(param_dict)
+        elif fields['type'].upper() == "FIELDGROUP":
+            if fields['hidden'] is not True and fields['disabled'] is not True:
+                overall_group_values = dict()
+                overall_group_values['values'] = []
+                overall_group_values['id'] = fields['id']
+                ### groupValues
+                if 'groupValues' in fields.keys():
+                    group_values = fields['groupValues']
+                    for idx,param_g in enumerate(group_values):
+                        group_values_dict = dict()
+                        group_values_dict['values'] = []
+                        for idx1,param in enumerate(param_g['values']):
+                            param_dict = dict()
+                            param_dict['id'] = param['id']
+                            param_dict['dataValues'] = []
+                            param_dict['values'] = []
+                            if len(param['values']) > 0:
+                                for p in param['values']:
+                                    if re.match("^fol.",p) is not None or re.match("^fil.",p) is not None:
+                                        data_dict = dict()
+                                        data_dict['dataId'] = p
+                                        param_dict['dataValues'].append(data_dict)
+                                    elif re.match("^fol.",p) is None and re.match("^fil.",p) is None:
+                                        param_dict['values'].append(p)
+                            ## remove 'values' if we don't have any information to send
+                            if len(param_dict['values']) == 0:
+                                param_dict.pop('values', None)
+                            ## remove 'dataValues' if we don't have any information to send
+                            if len(param_dict['dataValues']) == 0:
+                                param_dict.pop('dataValues', None)
+                            if len(param_dict.keys()) > 0:
+                                group_values_dict['values'].append(param_dict) 
+                        if len(group_values_dict['values']) > 0:
+                            overall_group_values['values'].append(group_values_dict)
+                ### fields
+                if 'fields' in fields.keys():
+                    group_fields = fields['fields']
+                    group_values_dict = dict()
+                    group_values_dict['values'] = []
+                    for idx,param in enumerate(group_fields):
+                        if param['hidden'] is not True and param['disabled'] is not True and 'values' in param.keys():
+                            param_dict = dict()
+                            param_dict['id'] = param['id']
+                            new_values = None
+                            ### checkbox is of boolean type
+                            if param['type'].upper() in ["CHECKBOX"]:
+                                new_values = [ string_to_boolean(x) for x in param['values'] ]
+                            if param['type'].upper() in ["INTEGER"]:
+                                new_values = [ int(x) for x in param['values'] ]
+                            #if 'choices' in list(param.keys()):
+                            #    new_values = [ choices_conversion(param['choices'],x) for x in param['values']]
+                            if new_values is not None:
+                                param['values'] = new_values
+                            if len(param['values']) > 0:
+                                param_dict['values'] = param['values']
+                            ## remove 'values' if we don't have any information to send
+                            if len(param_dict['values']) == 0:
+                                param_dict.pop('values', None)
+                            ## remove 'dataValues' if we don't have any information to send
+                            if len(param_dict['dataValues']) == 0:
+                                param_dict.pop('dataValues', None)
+                            if len(param_dict.keys()) > 0:
+                                group_values_dict['values'].append(param_dict) 
+                        elif param['hidden'] is not True and param['disabled'] is not True and 'dataValues' in param.keys():
+                            param_dict = dict()
+                            param_dict['id'] = param['id']
+                            if len(param['dataValues']) > 0:
+                                param_dict['dataValues'] = param['dataValues']
+                            ## remove 'values' if we don't have any information to send
+                            if len(param_dict['values']) == 0:
+                                param_dict.pop('values', None)
+                            ## remove 'dataValues' if we don't have any information to send
+                            if len(param_dict['dataValues']) == 0:
+                                param_dict.pop('dataValues', None)
+                            if len(param_dict.keys()) > 0:
+                                group_values_dict['values'].append(param_dict)  
+                        if len(group_values_dict['values']) > 0:
+                            overall_group_values['values'].append(group_values_dict)
+                ### add nested object back
+                if len(overall_group_values['values']) > 0:
+                        api_dict['groups'].append(overall_group_values)
+        else:
+        ### otherwise grab values
+            if fields['hidden'] is not True and fields['disabled'] is not True:
+                if 'values' in list(fields.keys()):
+                    param_dict = dict()
+                    param_dict['id'] = fields['id']
+                    new_values = None
+                    ### checkbox is of boolean type
+                    if fields['type'].upper() in ["CHECKBOX"]:
+                        new_values = [ string_to_boolean(x) for x in fields['values'] ]
+                    if fields['type'].upper() in ["INTEGER"]:
+                        new_values = [ int(x) for x in fields['values'] ]
+                    #if 'choices' in list(fields.keys()):
+                    #    new_values = [ choices_conversion(fields['choices'],x) for x in fields['values']]
+                    if new_values is not None:
+                        fields['values'] = new_values
+                    param_dict['values'] = fields['values']
+                    if len(param_dict['values']) > 0:
+                        api_dict['fields'].append(param_dict)
+    return api_dict
+###z = collect_apidict_jsoninputform(d['items'])
+####pprint(z,indent = 4)    
 ##########################################
 #### STEP 1 in HTML
 async def load_login_info(event):
@@ -816,21 +1169,24 @@ async def generate_requeue_template(event):
                 storage_size = project_analysis['analysisStorage']['name']
             else:
                 storage_size = 'Large'
+            input_form_type = project_analysis['pipeline']['inputFormType'].upper()
     ##### crafting job template
     input_data_fields_to_keep  = []
     param_fields_to_keep = []
-    display('Getting data input and paramters from analysis',target="requeue-template-logging",append="True")
-    job_templates = await get_cwl_input_template(pipeline_name, authorization_metadata['jwt_token'],analysis_metadata['project_name'],input_data_fields_to_keep, param_fields_to_keep,analysis_id = analysis_id,project_id=analysis_metadata['project_id'])
+    if input_form_type == "XML":
+        display('Getting data input and parameters from analysis',target="requeue-template-logging",append="True")
+        job_templates = await get_cwl_input_template(pipeline_name, authorization_metadata['jwt_token'],analysis_metadata['project_name'],input_data_fields_to_keep, param_fields_to_keep,analysis_id = analysis_id,project_id=analysis_metadata['project_id'])
     ########################################
     #### now let's set up pipeline analysis by updating the template
     dateTimeObj = dt.now()
     timestampStr = dateTimeObj.strftime("%Y%b%d_%H_%M_%S_%f")
     pipeline_run_name = analysis_metadata['analysis_name'] + "_requeue_" + timestampStr 
     pipeline_run_name = pipeline_run_name.replace(" ","_")
-    #print(f"Setting up pipeline analysis for {pipeline_run_name}")
-    my_params = job_templates['parameter_settings']
-    #display(my_params)
-    my_data_inputs = job_templates['input_data']
+    if input_form_type == "XML":
+        #print(f"Setting up pipeline analysis for {pipeline_run_name}")
+        my_params = job_templates['parameter_settings']
+        #display(my_params)
+        my_data_inputs = job_templates['input_data']
     #display(my_data_inputs)
     pipeline_id = await get_pipeline_id(pipeline_name, authorization_metadata['jwt_token'],analysis_metadata['project_name'],project_id = analysis_metadata['project_id'])
     my_tags = [pipeline_run_name]
@@ -840,7 +1196,10 @@ async def generate_requeue_template(event):
     #print(f"{time_now} Launching pipeline analysis for {pipeline_run_name}")
     if TEMPLATE_TYPE.lower() == "cli":
         display('Generating CLI template',target="requeue-template-logging",append="True")
-        cli_template = get_pipeline_request_template(authorization_metadata['jwt_token'], analysis_metadata['project_id'], pipeline_name, my_data_inputs, my_params,my_tags, storage_size, pipeline_run_name,workflow_language)
+        if input_form_type == "XML":
+            cli_template = get_pipeline_request_template(authorization_metadata['jwt_token'], analysis_metadata['project_id'], pipeline_name, my_data_inputs, my_params,my_tags, storage_size, pipeline_run_name,workflow_language)
+        elif input_form_type == "JSON":
+            cli_template = await get_cli_template_jsoninputform(authorization_metadata['jwt_token'], analysis_metadata['project_id'], pipeline_name, analysis_id ,my_tags, storage_size, pipeline_run_name,workflow_language)
         #create_download_button(cli_template)
         pydom["script#my_template"].style["display"] = "block"
         document.getElementById('my_template').innerHTML = cli_template
@@ -852,7 +1211,13 @@ async def generate_requeue_template(event):
     elif TEMPLATE_TYPE.lower() == "api":
         ####################################
         display('Generating API template',target="requeue-template-logging",append="True")
-        test_launch = await launch_pipeline_analysis_cwl(authorization_metadata['jwt_token'], analysis_metadata['project_id'], pipeline_id, my_data_inputs, my_params,my_tags, my_storage_analysis_id, pipeline_run_name,workflow_language,make_template = True)
+        if input_form_type == "XML":
+            test_launch = await launch_pipeline_analysis_cwl(authorization_metadata['jwt_token'], analysis_metadata['project_id'], pipeline_id, my_data_inputs, my_params,my_tags, my_storage_analysis_id, pipeline_run_name,workflow_language,make_template = True)
+        elif input_form_type == "JSON":
+            input_dict = await get_inputform_values(authorization_metadata['jwt_token'], analysis_metadata['project_id'],analysis_id)
+            api_dict =  collect_apidict_jsoninputform(input_dict)
+            if api_dict is not None:
+                test_launch = await submit_jsoninputform(authorization_metadata['jwt_token'], analysis_metadata['project_id'], pipeline_id, api_dict,my_tags, my_storage_analysis_id, pipeline_run_name,workflow_language,make_template = True) 
         #create_download_button(test_launch)
         pydom["script#my_template"].style["display"] = "block"
         #display(test_launch,target="my_template",append="False")
@@ -894,8 +1259,25 @@ async def learn_api_cli(event):
     new_element.innerHTML = analysis_metadata['step3-api']
     #document.getElementById('step3-api').appendChild(new_element)
     # STEP4
+    analyses_list =[ analysis_metadata['metadata_by_analysis_id'][analysis_metadata['analysis_id']] ]
+    #analyses_list = await list_project_analyses(authorization_metadata['jwt_token'],analysis_metadata['project_id'])
+    for aidx,project_analysis in enumerate(analyses_list):
+        if project_analysis['userReference'] == analysis_metadata['analysis_name'] or project_analysis['id'] == analysis_metadata['analysis_name']:
+            analysis_id = project_analysis['id']
+            display(f"Found Analysis with name {analysis_metadata['analysis_name']} with id : {analysis_id}\n",target="requeue-template-logging",append="True")
+            pipeline_id = project_analysis['pipeline']['id']
+            pipeline_name = project_analysis['pipeline']['code']
+            workflow_language = project_analysis['pipeline']['language'].lower()
+            if 'analysisStorage' in project_analysis.keys():
+                storage_size = project_analysis['analysisStorage']['name']
+            else:
+                storage_size = 'Large'
+            input_form_type = project_analysis['pipeline']['inputFormType'].upper()
     new_element = document.getElementById('step4-cli-content')
-    new_element.innerHTML = f"#Grab dataInputs<br><br>icav2 projectanalyses input {analysis_metadata['analysis_id']} --project-id {analysis_metadata['project_id']}  --access-token '{authorization_metadata['jwt_token']}'<br><br>Currently you cannot grab parameter configurations from previous analyses via the CLI<br>You can grab all possible parameter configurations via the API. Click API tab for more info<br>"
+    if input_form_type == "XML":
+        new_element.innerHTML = f"#Grab dataInputs<br><br>icav2 projectanalyses input {analysis_metadata['analysis_id']} --project-id {analysis_metadata['project_id']}  --access-token '{authorization_metadata['jwt_token']}'<br><br>Currently you cannot grab parameter configurations from previous analyses via the CLI<br>You can grab all possible parameter configurations via the API. Click API tab for more info<br>"
+    elif input_form_type == "JSON":
+        new_element.innerHTML = f"#Grab dataInputs<br><br>icav2 projectanalyses input {analysis_metadata['analysis_id']} --project-id {analysis_metadata['project_id']}  --access-token '{authorization_metadata['jwt_token']}'<br><br>"
     #document.getElementById('step4-cli').appendChild(new_element)
     new_element = document.getElementById('step4-api-content')
     full_steps = '<br>'.join(analysis_metadata['step4-api'])
