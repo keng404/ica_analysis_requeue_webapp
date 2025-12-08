@@ -1035,9 +1035,17 @@ async def load_project_selection_info(event):
         analysis_metadata['project_name'] = PROJECT_NAME
         analysis_metadata['project_id'] = PROJECT_ID
     except:
-        console.error('Please retry entering a project name')
-        alert('Please retry entering a project name.')
-        raise ValueError(f"Could not get project id for project: {PROJECT_NAME}\nPlease double-check project name exists.")    
+        PROJECT_ID = None
+        project_table = await list_projects(authorization_metadata['jwt_token'])
+        for pr in project_table:
+            if pr[0] == PROJECT_NAME:
+                PROJECT_ID = pr[1]
+                analysis_metadata['project_name'] = PROJECT_NAME
+                analysis_metadata['project_id'] = PROJECT_ID
+        if PROJECT_ID is None:
+            console.error('Please retry entering a project name')
+            alert('Please retry entering a project name.')
+            raise ValueError(f"Could not get project id for project: {PROJECT_NAME}\nPlease double-check project name exists.")    
     display(f"Fetching all analyses from {PROJECT_NAME}",target ="step2-selection",append="True")    
     analyses_list = await list_project_analyses(authorization_metadata['jwt_token'],analysis_metadata['project_id'])
     display(f"Fetching Completed\nCreating Table\n",target ="step2-selection",append="True")    
