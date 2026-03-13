@@ -15,3 +15,6 @@ For those looking for programmatic ways to do this ---- take a look [here](https
 
 - [ ] create loading pages for each button press
 - [ ] add more explanations of CLI/API calls used to grab information for requeue
+
+## limitations
+- **cannot be used to requeue BaseSpace (autolaunched) analyses**
