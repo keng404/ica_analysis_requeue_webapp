@@ -7,6 +7,9 @@ For those looking for programmatic ways to do this ---- take a look [here](https
 
 **26-AUG-2025** Now compatible with JSON input-form based ICA pipelines
 
+## limitations
+- **cannot be used to requeue BaseSpace (autolaunched) analyses**
+- 
 ## notes
 - python script ```main.py``` contains logic to render elements in the ```index.html```.
 - index.html is stylized by ```assets/css/examples.css```.
@@ -15,6 +18,3 @@ For those looking for programmatic ways to do this ---- take a look [here](https
 
 - [ ] create loading pages for each button press
 - [ ] add more explanations of CLI/API calls used to grab information for requeue
-
-## limitations
-- **cannot be used to requeue BaseSpace (autolaunched) analyses**
